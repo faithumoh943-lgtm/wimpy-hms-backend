@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>WIMPY HMS Dashboard</title>
+<style>
+body{font-family:Arial;background:#111;color:#fff;padding:20px}
+h1,h2{color:#00ffcc}
+input,button{padding:10px;margin:5px}
+button{background:#00ffcc;border:none;cursor:pointer}
+.card{background:#222;padding:15px;border-radius:10px;margin-bottom:20px}
+.list li{margin:5px 0}
+</style>
+</head>
+<body>
+
+<div style="display:flex;align-items:center;gap:15px;margin-bottom:20px;">
+  <img src="wimpy_logo.png" height="70">
+  <h1>WIMPY BEACH FRONT APARTMENT – BAR ACCOUNTING</h1>
+</div>
+
+<div class="card">
+<h2>Add Bar Sale</h2>
+<input id="item" placeholder="Item name">
+<input id="qty" type="number" placeholder="Qty">
+<input id="price" type="number" placeholder="Price">
+<button onclick="addSale()">Save Sale</button>
+</div>
+
+<div class="card">
+<h2>Add Expense</h2>
+<input id="etitle" placeholder="Expense title">
+<input id="eamount" type="number" placeholder="Amount">
+<button onclick="addExpense()">Save Expense</button>
+</div>
+
+<div class="card">
+<h2>Live Profit</h2>
+<h2 id="profit">₦0</h2>
+</div>
+
+<div class="card">
+<h2>Daily Closing Report</h2>
+<button onclick="loadDaily()">View Today</button>
+<pre id="daily"></pre>
+</div>
+
+<div class="card">
+<h2>Sales</h2>
+<ul id="sales" class="list"></ul>
+</div>
+
+<div class="card">
+<h2>Expenses</h2>
+<ul id="expenses" class="list"></ul>
+</div>
+
+<script>
+function load(){
+ fetch("http://localhost:5000/bar-sales").then(r=>r.json()).then(d=>{
+   sales.innerHTML="";
+   d.forEach(s=>{
+    sales.innerHTML += `<li>
+      ${s.item} x${s.qty} = ₦${s.total}
+      <button onclick="printReceipt('${s._id}')">🧾 Print</button>
+    </li>`;
+   })
+ })
+ fetch("http://localhost:5000/expenses").then(r=>r.json()).then(d=>{
+   expenses.innerHTML=""
+   d.forEach(e=>{
+    expenses.innerHTML += `<li>${e.title} - ₦${e.amount}</li>`
+   })
+ })
+ fetch("http://localhost:5000/profit").then(r=>r.json()).then(d=>{
+   profit.innerText = "₦" + d.profit
+ })
+}
+load()
+
+function addSale(){
+ fetch("http://localhost:5000/bar-sale",{
+  method:"POST",
+  headers:{"Content-Type":"application/json"},
+  body:JSON.stringify({
+    item:item.value,
+    qty:Number(qty.value),
+    price:Number(price.value),
+    total:Number(qty.value) * Number(price.value)
+  })
+ }).then(()=>load())
+}
+
+function addExpense(){
+ fetch("http://localhost:5000/add-expense",{
+  method:"POST",
+  headers:{"Content-Type":"application/json"},
+  body:JSON.stringify({
+    title:etitle.value,
+    amount:Number(eamount.value)
+  })
+ }).then(()=>load())
+}
+
+function printReceipt(id){
+ fetch("http://localhost:5000/receipt/"+id)
+ .then(r=>r.json())
+ .then(s=>{
+   const win = window.open("", "receipt");
+   win.document.write(`
+    <html>
+    <head><title>WIMPY RECEIPT</title></head>
+    <body>
+     <h2>WIMPY BEACH FRONT BAR</h2>
+     <hr>
+     Item: ${s.item}<br>
+     Qty: ${s.qty}<br>
+     Price: ₦${s.price}<br>
+     <b>Total: ₦${s.total}</b><br>
+     Date: ${new Date(s.date).toLocaleString()}
+     <hr>
+     <button onclick="window.print()">PRINT</button>
+    </body>
+    </html>
+   `);
+ });
+}
+</script>
+
+</body>
+</html>
