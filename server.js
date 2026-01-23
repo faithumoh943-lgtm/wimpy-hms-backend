@@ -1,3 +1,5 @@
+const KitchenSale = require("./models/KitchenSale");
+const KitchenStock = require("./models/KitchenStock");
 const fs = require("fs");
 const path = require("path");
 const PDFDocument = require("pdfkit");
@@ -164,6 +166,55 @@ app.get("/payroll-summary/:month",
     doc.end();
   }
 );
+// ================= KITCHEN SALES =================
+app.post("/kitchen-sale", authorize(["kitchen","manager"]), async (req,res)=>{
+  const sale = new KitchenSale({
+    ...req.body,
+    total: req.body.quantity * req.body.price
+  });
+  await sale.save();
+  res.json({ message: "Kitchen sale recorded" });
+});
+
+app.get("/kitchen-sales", authorize(["manager","accountant"]), async (req,res)=>{
+  res.json(await KitchenSale.find().sort({ date:-1 }));
+});
+
+// ================= KITCHEN STOCK =================
+app.post("/add-kitchen-stock", authorize(["manager"]), async (req,res)=>{
+  const stock = new KitchenStock(req.body);
+  await stock.save();
+  res.json({ message:"Kitchen stock added" });
+});
+
+app.get("/kitchen-stock", authorize(["kitchen","manager"]), async (req,res)=>{
+  res.json(await KitchenStock.find().sort({ item:1 }));
+});
+
+app.post("/update-kitchen-stock", authorize(["manager"]), async (req,res)=>{
+  await KitchenStock.findByIdAndUpdate(req.body.id,{
+    quantity: req.body.quantity,
+    updatedAt: new Date()
+  });
+  res.json({ message:"Stock updated" });
+});
+// ================= DASHBOARD SUMMARY =================
+app.get("/dashboard-summary", authorize(["manager","accountant"]), async (req,res)=>{
+  const barSales = await BarSale.find();
+  const kitchenSales = await KitchenSale.find();
+  const hotelSales = await Guest.find({ status:"CheckedOut" });
+
+  const barTotal = barSales.reduce((a,b)=>a+b.total,0);
+  const kitchenTotal = kitchenSales.reduce((a,b)=>a+b.total,0);
+  const hotelTotal = hotelSales.reduce((a,b)=>a+b.amount,0);
+
+  res.json({
+    barTotal,
+    kitchenTotal,
+    hotelTotal,
+    totalRevenue: barTotal + kitchenTotal + hotelTotal
+  });
+});
 
 // ================= SERVER =================
 const PORT = process.env.PORT || 5000;
